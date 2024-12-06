@@ -104,7 +104,8 @@ def predict_xbi_conditions(features):
         return 'Neutral'  # Neither strongly positive nor negative
 
 import os
-import streamlit as st  # Import Streamlit at the beginning
+import pandas as pd
+import streamlit as st
 
 def main():
     st.title('XBI Market Condition Predictor')
@@ -137,13 +138,20 @@ def main():
     # 3. Check if the specific file exists
     if os.path.exists(file_path):
         st.write(f"The file '{file_path}' exists!")
+        
+        # Read the Excel file and display top 5 rows
+        try:
+            data = pd.read_excel(file_path)
+            st.write("Top 5 rows of the data:")
+            st.write(data.head())  # Display top 5 rows
+        except Exception as e:
+            st.error(f"Error reading the Excel file: {e}")
     else:
         st.error(f"The file '{file_path}' does not exist!")
 
     # 4. Print the absolute file path for clarity
     absolute_path = os.path.abspath(file_path)
     st.write(f"Absolute path of the file: {absolute_path}")
-
 
     # Fetch live data for XBI and SPY
     st.subheader('Live Data')
@@ -156,6 +164,7 @@ def main():
 
     st.write(f"Latest Data for XBI: {xbi_data.tail(1)}")
     st.write(f"Latest Data for SPY: {spy_data.tail(1)}")
+
 
     # Prepare features from live data
     features = prepare_live_features(xbi_data, spy_data)
