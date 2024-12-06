@@ -329,6 +329,122 @@ def plot_predictions_with_price(X_combined, y_combined, df_ticker_data, model):
     plt.show()
 
 
+# def main():
+#     st.title("XBI Market Condition Prediction")
+
+#     # Load tickers and fetch data
+#     tickers = load_tickers("Input/Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx")
+#     tickers_mini = tickers
+#     benchmark_tickers = ["XBI", "SPY"]
+#     tickers_full = tickers_mini + benchmark_tickers
+
+#     # Fetch data
+#     df_ticker_daily = fetch_data(tickers_full)
+
+#     # Prepare features and targets for model
+#     X_combined, y_combined = prepare_features_and_targets(df_ticker_daily, tickers_full, period=5)
+
+#     # Initialize and train model
+#     models = initialize_models()
+#     model = models['DecisionTree']
+#     model.fit(X_combined, y_combined)
+
+#     # Create tabs for different visualizations
+#     tab1, tab2, tab3 = st.tabs(["Model Performance", "Predictions vs Actual", "Price with Predictions"])
+
+#     with tab1:
+#         st.header("Model Performance")
+#         # Capture model evaluation output
+#         X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False)
+#         y_pred = model.predict(X_test)
+        
+#         st.write("Classification Report:")
+#         st.text(classification_report(y_test, y_pred))
+        
+#         st.write("Confusion Matrix:")
+#         st.text(confusion_matrix(y_test, y_pred))
+        
+#         st.write(f"Test Accuracy: {accuracy_score(y_test, y_pred)}")
+
+#     with tab2:
+#         st.header("Predictions vs Actual")
+#         # Create plot for predictions vs actual
+#         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 10))
+        
+#         # Plot for Top predictions
+#         top_indices = y_test == 1
+#         ax1.scatter(range(sum(top_indices)), y_test[top_indices], label='Actual', color='blue')
+#         ax1.scatter(range(sum(top_indices)), y_pred[top_indices], label='Predicted', color='red', marker='x')
+#         ax1.set_title('Top Predictions')
+#         ax1.legend()
+
+#         # Plot for Bottom predictions
+#         bottom_indices = y_test == -1
+#         ax2.scatter(range(sum(bottom_indices)), y_test[bottom_indices], label='Actual', color='blue')
+#         ax2.scatter(range(sum(bottom_indices)), y_pred[bottom_indices], label='Predicted', color='red', marker='x')
+#         ax2.set_title('Bottom Predictions')
+#         ax2.legend()
+
+#         plt.tight_layout()
+#         st.pyplot(fig)
+
+#     with tab3:
+#         st.header("XBI Price with Market Condition Predictions")
+#         # Get XBI price data
+#         df_xbi = df_ticker_daily[df_ticker_daily['symbol'] == 'XBI'].copy()
+#         df_xbi = df_xbi.reset_index(drop=True)
+
+#         # Split data without shuffling
+#         X_train, X_test, y_train, y_test = train_test_split(
+#             X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False
+#         )
+#         y_pred = model.predict(X_test)
+
+#         # Create figure for price with predictions
+#         fig, ax = plt.subplots(figsize=(15, 10))
+        
+#         # Get test set slice of XBI data
+#         df_xbi_test = df_xbi.iloc[-len(y_test):]
+
+#         # Plot actual XBI prices
+#         ax.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
+
+#         # Highlight prediction points
+#         top_indices = y_test == 1
+#         bottom_indices = y_test == -1
+        
+#         ax.scatter(
+#             df_xbi_test.loc[top_indices, 'date'], 
+#             df_xbi_test.loc[top_indices, 'adjclose'], 
+#             color='green', marker='^', label='Predicted Top'
+#         )
+#         ax.scatter(
+#             df_xbi_test.loc[bottom_indices, 'date'], 
+#             df_xbi_test.loc[bottom_indices, 'adjclose'], 
+#             color='red', marker='v', label='Predicted Bottom'
+#         )
+
+#         ax.set_title('XBI Price with Market Condition Predictions')
+#         ax.set_xlabel('Date')
+#         ax.set_ylabel('Adjusted Close Price')
+#         ax.legend()
+#         plt.xticks(rotation=45)
+#         plt.tight_layout()
+        
+#         st.pyplot(fig)
+
+#     # Decision Tree Visualization
+#     st.header("Decision Tree Visualization")
+#     fig, ax = plt.subplots(figsize=(20,10))
+#     plot_tree(model, feature_names=X_combined.columns, 
+#               class_names=['Bottom', 'Neutral', 'Top'], 
+#               filled=True, rounded=True, impurity=True, ax=ax)
+#     st.pyplot(fig)
+
+# if __name__ == "__main__":
+#     warnings.filterwarnings("ignore")
+#     main()
+
 def main():
     st.title("XBI Market Condition Prediction")
 
@@ -354,31 +470,24 @@ def main():
 
     with tab1:
         st.header("Model Performance")
-        # Capture model evaluation output
         X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False)
         y_pred = model.predict(X_test)
-        
         st.write("Classification Report:")
         st.text(classification_report(y_test, y_pred))
-        
         st.write("Confusion Matrix:")
         st.text(confusion_matrix(y_test, y_pred))
-        
         st.write(f"Test Accuracy: {accuracy_score(y_test, y_pred)}")
 
     with tab2:
         st.header("Predictions vs Actual")
-        # Create plot for predictions vs actual
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 10))
         
-        # Plot for Top predictions
         top_indices = y_test == 1
         ax1.scatter(range(sum(top_indices)), y_test[top_indices], label='Actual', color='blue')
         ax1.scatter(range(sum(top_indices)), y_pred[top_indices], label='Predicted', color='red', marker='x')
         ax1.set_title('Top Predictions')
         ax1.legend()
 
-        # Plot for Bottom predictions
         bottom_indices = y_test == -1
         ax2.scatter(range(sum(bottom_indices)), y_test[bottom_indices], label='Actual', color='blue')
         ax2.scatter(range(sum(bottom_indices)), y_pred[bottom_indices], label='Predicted', color='red', marker='x')
@@ -390,38 +499,33 @@ def main():
 
     with tab3:
         st.header("XBI Price with Market Condition Predictions")
-        # Get XBI price data
         df_xbi = df_ticker_daily[df_ticker_daily['symbol'] == 'XBI'].copy()
         df_xbi = df_xbi.reset_index(drop=True)
 
-        # Split data without shuffling
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False
-        )
+        X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False)
         y_pred = model.predict(X_test)
 
-        # Create figure for price with predictions
         fig, ax = plt.subplots(figsize=(15, 10))
-        
-        # Get test set slice of XBI data
         df_xbi_test = df_xbi.iloc[-len(y_test):]
 
-        # Plot actual XBI prices
         ax.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
 
-        # Highlight prediction points
         top_indices = y_test == 1
         bottom_indices = y_test == -1
         
         ax.scatter(
             df_xbi_test.loc[top_indices, 'date'], 
             df_xbi_test.loc[top_indices, 'adjclose'], 
-            color='green', marker='^', label='Predicted Top'
+            color='green', 
+            marker='^', 
+            label='Predicted Top'
         )
         ax.scatter(
             df_xbi_test.loc[bottom_indices, 'date'], 
             df_xbi_test.loc[bottom_indices, 'adjclose'], 
-            color='red', marker='v', label='Predicted Bottom'
+            color='red', 
+            marker='v', 
+            label='Predicted Bottom'
         )
 
         ax.set_title('XBI Price with Market Condition Predictions')
@@ -430,15 +534,20 @@ def main():
         ax.legend()
         plt.xticks(rotation=45)
         plt.tight_layout()
-        
         st.pyplot(fig)
 
     # Decision Tree Visualization
     st.header("Decision Tree Visualization")
     fig, ax = plt.subplots(figsize=(20,10))
-    plot_tree(model, feature_names=X_combined.columns, 
-              class_names=['Bottom', 'Neutral', 'Top'], 
-              filled=True, rounded=True, impurity=True, ax=ax)
+    plot_tree(
+        model, 
+        feature_names=X_combined.columns, 
+        class_names=['Bottom', 'Neutral', 'Top'], 
+        filled=True, 
+        rounded=True, 
+        impurity=True, 
+        ax=ax
+    )
     st.pyplot(fig)
 
 if __name__ == "__main__":
