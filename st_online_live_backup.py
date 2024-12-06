@@ -117,9 +117,6 @@ def main():
     # Main prediction interface
     st.header('XBI Market Condition Prediction')
 
-    df = pd.read_excel("Input\Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx")
-    st.write(df.head())
-
     # Fetch live data for XBI and SPY
     st.subheader('Live Data')
     xbi_data = fetch_live_data('XBI')
