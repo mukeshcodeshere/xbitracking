@@ -103,6 +103,9 @@ def predict_xbi_conditions(features):
     else:
         return 'Neutral'  # Neither strongly positive nor negative
 
+import os
+import streamlit as st  # Import Streamlit at the beginning
+
 def main():
     st.title('XBI Market Condition Predictor')
 
@@ -116,9 +119,6 @@ def main():
     
     # Main prediction interface
     st.header('XBI Market Condition Prediction')
-
-    import os
-    import streamlit as st
 
     # Define the file path to check
     file_path = 'Input/Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx'
