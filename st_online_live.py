@@ -329,6 +329,7 @@ def plot_predictions_with_price(X_combined, y_combined, df_ticker_data, model):
     plt.show()
 
 
+
 def main():
     st.title("XBI Market Condition Prediction")
 
