@@ -117,8 +117,33 @@ def main():
     # Main prediction interface
     st.header('XBI Market Condition Prediction')
 
-    df = pd.read_excel("Input\Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx")
-    st.write(df.head())
+    import os
+    import streamlit as st
+
+    # Define the file path to check
+    file_path = 'Input/Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx'
+
+    # 1. Print the current working directory
+    st.write("Current working directory:", os.getcwd())
+
+    # 2. List all files in the 'Input' directory
+    input_dir = 'Input'
+    if os.path.isdir(input_dir):
+        st.write(f"Files in '{input_dir}' directory:")
+        st.write(os.listdir(input_dir))
+    else:
+        st.error(f"The directory '{input_dir}' does not exist!")
+
+    # 3. Check if the specific file exists
+    if os.path.exists(file_path):
+        st.write(f"The file '{file_path}' exists!")
+    else:
+        st.error(f"The file '{file_path}' does not exist!")
+
+    # 4. Print the absolute file path for clarity
+    absolute_path = os.path.abspath(file_path)
+    st.write(f"Absolute path of the file: {absolute_path}")
+
 
     # Fetch live data for XBI and SPY
     st.subheader('Live Data')
