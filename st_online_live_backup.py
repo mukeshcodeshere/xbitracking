@@ -328,59 +328,29 @@ def plot_predictions_with_price(X_combined, y_combined, df_ticker_data, model):
     plt.tight_layout()
     plt.show()
 
-# Fetch live XBI data from Yahoo Finance (minute-level data)
-def fetch_live_data(ticker='XBI'):
-    """Fetch the latest minute-level data for XBI from Yahoo Finance."""
-    xbi = Ticker(ticker)
-    xbi_history = xbi.history(period='1d', interval='1m')  # Fetch live minute-level data for today
-    return xbi_history
 
-# Prepare features and targets for the live data
-def prepare_live_features(df_live_data):
-    """Prepare features for live XBI data."""
-    df_live_data['7d_ma'] = df_live_data['close'].rolling(window=7).mean()
-    df_live_data['14d_rsi'] = compute_rsi(df_live_data['close'])
-    df_live_data['30d_ma'] = df_live_data['close'].rolling(window=30).mean()
-    df_live_data['macd'], df_live_data['macd_signal'] = compute_macd(df_live_data['close'])
-    df_live_data['volatility'] = df_live_data['close'].rolling(window=14).std()
-
-    # Handle NaNs (since some rolling features will be NaN initially)
-    df_live_data = df_live_data.fillna(0)
-
-    # Features for prediction
-    feature_columns = ['7d_ma', '14d_rsi', '30d_ma', 'macd', 'macd_signal', 'volatility']
-    X_live = df_live_data[feature_columns]
-
-    return X_live
-
-# Function to make predictions on live data
-def predict_live_condition(model, X_live):
-    """Use the trained model to predict market condition based on live data."""
-    y_live_pred = model.predict(X_live)
-    return y_live_pred
-
-# Streamlit UI with tabs
 def main():
-    st.title("XBI Live Market Condition Prediction")
+    st.title("XBI Market Condition Prediction")
 
-    # Load tickers and fetch historical data (used for model training)
+    # Load tickers and fetch data
     tickers = load_tickers("Input/Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx")
     tickers_mini = tickers
     benchmark_tickers = ["XBI", "SPY"]
     tickers_full = tickers_mini + benchmark_tickers
 
-    # Fetch daily historical data for model training
+    # Fetch data
     df_ticker_daily = fetch_data(tickers_full)
 
-    # Prepare features and targets for the model
+    # Prepare features and targets for model
     X_combined, y_combined = prepare_features_and_targets(df_ticker_daily, tickers_full, period=5)
 
     # Initialize and train model
-    model = DecisionTreeClassifier(max_depth=3, random_state=42)
+    models = initialize_models()
+    model = models['DecisionTree']
     model.fit(X_combined, y_combined)
 
     # Create tabs for different visualizations
-    tab1, tab2, tab3, tab4 = st.tabs(["Model Performance", "Predictions vs Actual", "Price with Predictions", "Live XBI Monitoring"])
+    tab1, tab2, tab3 = st.tabs(["Model Performance", "Predictions vs Actual", "Price with Predictions"])
 
     with tab1:
         st.header("Model Performance")
@@ -450,44 +420,19 @@ def main():
         plt.tight_layout()
         st.pyplot(fig)
 
-    with tab4:
-        st.header("Live XBI Monitoring")
-        st.write("Fetching live XBI minute-level data...")
-
-        # Fetch live data for XBI
-        df_live_data = fetch_live_data(ticker="XBI")
-
-        # Prepare features for prediction
-        X_live = prepare_live_features(df_live_data)
-
-        # Make predictions using the trained model
-        live_pred = predict_live_condition(model, X_live)
-
-        # Display live predictions
-        st.write("Live Predictions for XBI:")
-        if live_pred[-1] == 1:
-            st.markdown("### Predicted Condition: **Top** (Market is in an Uptrend)")
-        elif live_pred[-1] == -1:
-            st.markdown("### Predicted Condition: **Bottom** (Market is in a Downtrend)")
-        else:
-            st.markdown("### Predicted Condition: **Neutral** (Market is Stable)")
-
-        # Plot the live XBI data with predictions
-        fig, ax = plt.subplots(figsize=(15, 10))
-        ax.plot(df_live_data.index, df_live_data['close'], label='XBI Price', color='blue')
-        
-        # Display predictions as markers
-        if live_pred[-1] == 1:
-            ax.scatter(df_live_data.index[-1], df_live_data['close'].iloc[-1], color='green', marker='^', label="Predicted Top")
-        elif live_pred[-1] == -1:
-            ax.scatter(df_live_data.index[-1], df_live_data['close'].iloc[-1], color='red', marker='v', label="Predicted Bottom")
-        
-        ax.set_title('Live XBI Price with Market Condition Prediction')
-        ax.set_xlabel('Time')
-        ax.set_ylabel('XBI Price')
-        ax.legend()
-        plt.xticks(rotation=45)
-        st.pyplot(fig)
+    # Decision Tree Visualization
+    st.header("Decision Tree Visualization")
+    fig, ax = plt.subplots(figsize=(20,10))
+    plot_tree(
+        model, 
+        feature_names=X_combined.columns, 
+        class_names=['Bottom', 'Neutral', 'Top'], 
+        filled=True, 
+        rounded=True, 
+        impurity=True, 
+        ax=ax
+    )
+    st.pyplot(fig)
 
 if __name__ == "__main__":
     warnings.filterwarnings("ignore")
