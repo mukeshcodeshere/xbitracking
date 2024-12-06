@@ -204,12 +204,11 @@ def main():
     st.write("This app uses stock data, technical indicators, and machine learning to predict market trends.")
 
     # Load tickers and fetch data
-    tickers = load_tickers("sp500_tickers.xlsx")
+    tickers = load_tickers("Input/Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx")
     df_ticker_data = fetch_data(tickers)
-    tickers_mini = tickers[:100]  # Taking a subset for demonstration
     
     # Prepare features and targets
-    X_combined, y_combined = prepare_features_and_targets(df_ticker_data, tickers_mini)
+    X_combined, y_combined = prepare_features_and_targets(df_ticker_data, tickers)
 
     # Train the model and display evaluation metrics
     models = initialize_models()
