@@ -255,7 +255,7 @@ def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, 
             
             # Predict market environment
             market_env = predict_market_environment(model, X_combined, latest_price, df_xbi)
-            
+            st.write(market_env)
             # Clear previous plot and create new one
             placeholder.empty()
             
