@@ -236,7 +236,7 @@ def main():
     # Load tickers and fetch data
     st.write("Loading Biotech Stock Tickers...")
     tickers = load_tickers("Input/Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx")
-    tickers_mini = tickers[:50]  # Limit to first 50 for demonstration
+    tickers_mini = tickers#[:50]  # Limit to first 50 for demonstration
     benchmark_tickers = ["XBI", "SPY"]
     tickers_full = tickers_mini + benchmark_tickers
     
