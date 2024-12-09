@@ -190,12 +190,60 @@ def initialize_models():
         )  
     }
 
-def fetch_live_xbi_data(placeholder, refresh_interval=60):
+def predict_market_environment(model, X_combined, latest_price, df_xbi):
     """
-    Fetch live minute-level XBI data with auto-refresh
+    Predict the current market environment using the latest price and trained model.
+    
+    Args:
+        model: Trained machine learning model
+        X_combined: DataFrame of features used for training
+        latest_price: Most recent XBI price
+        df_xbi: Original XBI dataframe to extract recent indicator values
+    
+    Returns:
+        str: Predicted market environment ('Top', 'Neutral', 'Bottom')
+    """
+    try:
+        # Get the most recent row's features
+        recent_row = df_xbi.iloc[-1]
+        
+        # Create a feature vector matching the training data
+        feature_vector = pd.DataFrame(columns=X_combined.columns)
+        
+        # Populate features with the most recent values
+        feature_vector.loc[0] = 0  # Initialize with zeros
+        
+        # Copy features from the recent row, matching column names
+        for col in X_combined.columns:
+            if col in recent_row.index:
+                feature_vector.loc[0, col] = recent_row[col]
+        
+        # Predict using the model
+        prediction = model.predict(feature_vector)[0]
+        
+        # Map numeric prediction to descriptive labels
+        market_env_map = {
+            -1: 'Bottom',
+            0: 'Neutral',
+            1: 'Top'
+        }
+        
+        return market_env_map[prediction]
+    
+    except Exception as e:
+        st.error(f"Error in market environment prediction: {e}")
+        return "Unable to predict"
+
+def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, refresh_interval=60):
+    """
+    Fetch live minute-level XBI data with auto-refresh and market environment prediction
 
     Args:
         placeholder: Streamlit placeholder for dynamic updates
+        model: Trained machine learning model
+        X_combined: DataFrame of features used for training
+        df_ticker_data: Full ticker dataset
+        df_xbi: Original XBI dataframe
         refresh_interval: Time between data refreshes in seconds (default 60)
     """
     while True:
@@ -203,22 +251,38 @@ def fetch_live_xbi_data(placeholder, refresh_interval=60):
             # Fetch 1 day of minute-level data for XBI
             df_xbi_minute = fetch_data(["XBI"], period='1d', interval='1m')
 
-            st.write(df_xbi_minute.tail())
-            latest_price = df_xbi_minute.tail(1)["close"].values
-            st.write("Latest price")
-            st.write(latest_price)
+            latest_price = df_xbi_minute.tail(1)["close"].values[0]
+            
+            # Predict market environment
+            market_env = predict_market_environment(model, X_combined, latest_price, df_xbi)
             
             # Clear previous plot and create new one
             placeholder.empty()
             
             # Plot XBI's price minute by minute
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.plot(df_xbi_minute['date'], df_xbi_minute['close'], label='XBI Price', color='blue')
-            ax.set_title("XBI Price Minute by Minute (Live Update)")
-            ax.set_xlabel('Time')
-            ax.set_ylabel('Price')
-            ax.legend()
-            plt.xticks(rotation=45)
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), gridspec_kw={'height_ratios': [3, 1]})
+            
+            # Price plot
+            ax1.plot(df_xbi_minute['date'], df_xbi_minute['close'], label='XBI Price', color='blue')
+            ax1.set_title("XBI Price Minute by Minute (Live Update)")
+            ax1.set_xlabel('Time')
+            ax1.set_ylabel('Price')
+            ax1.legend()
+            plt.setp(ax1.get_xticklabels(), rotation=45)
+            
+            # Market Environment Prediction Display
+            ax2.text(0.5, 0.5, f"Market Environment: {market_env}", 
+                     horizontalalignment='center', 
+                     verticalalignment='center', 
+                     fontsize=15, 
+                     fontweight='bold',
+                     bbox=dict(facecolor='green' if market_env == 'Top' 
+                               else 'red' if market_env == 'Bottom' 
+                               else 'yellow', 
+                               alpha=0.3))
+            ax2.axis('off')
+            
+            plt.tight_layout()
             
             # Display plot in Streamlit
             placeholder.pyplot(fig)
@@ -247,6 +311,9 @@ def main():
     # Prepare features and targets
     st.write("Preparing Model Features...")
     X_combined, y_combined = prepare_features_and_targets(df_ticker_daily, tickers_full)
+    
+    # Identify the XBI dataframe for feature extraction
+    df_xbi = df_ticker_daily[df_ticker_daily['symbol'] == 'XBI'].copy()
     
     # Train model
     st.write("Training Machine Learning Model...")
@@ -285,8 +352,8 @@ def main():
     # Create a placeholder for live XBI minute data
     xbi_minute_placeholder = st.empty()
     
-    # Fetch and auto-refresh XBI minute data
-    fetch_live_xbi_data(xbi_minute_placeholder, refresh_interval=60)
+    # Fetch and auto-refresh XBI minute data with market environment prediction
+    fetch_live_xbi_data(xbi_minute_placeholder, model, X_combined, df_ticker_daily, df_xbi, refresh_interval=60)
 
 if __name__ == "__main__":
     main()
