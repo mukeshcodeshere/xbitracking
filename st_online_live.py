@@ -124,6 +124,13 @@ def fetch_data(tickers, period='max', interval='1d'):
     return fetch_ticker_data(tickers, period=period, interval=interval, filename=None)
 
 def prepare_features_and_targets(df_ticker_data, tickers_mini):
+    
+    # Check the column names of the df_ticker_data DataFrame
+    st.write("Columns in df_ticker_data:", df_ticker_data.columns)
+
+    # Filter data for XBI and SPY
+    if 'symbol' not in df_ticker_data.columns:
+        raise ValueError("The 'symbol' column is missing in df_ticker_data.")
     """Prepare features and targets for modeling."""
     # Filter data for XBI and SPY
     df_xbi = df_ticker_data[df_ticker_data['symbol'] == 'XBI'].copy()
