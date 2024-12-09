@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import pickle,os,time,threading
+import pickle,os,time,threading,pytz
 import warnings
 import base64
 from io import BytesIO
@@ -10,7 +10,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from yahooquery import Ticker
-from data_fetcher import fetch_ticker_data
+from data_fetcher import fetch_ticker_data 
+from datetime import datetime
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -124,6 +125,9 @@ def fetch_data(tickers, period='max', interval='1d'):
     return fetch_ticker_data(tickers, period=period, interval=interval, filename=None)
 
 def prepare_features_and_targets(df_ticker_data, tickers_mini):
+    # Filter data for XBI and SPY
+    if 'symbol' not in df_ticker_data.columns:
+        raise ValueError("The 'symbol' column is missing in df_ticker_data.")
     """Prepare features and targets for modeling."""
     # Filter data for XBI and SPY
     df_xbi = df_ticker_data[df_ticker_data['symbol'] == 'XBI'].copy()
@@ -237,7 +241,7 @@ def predict_market_environment(model, X_combined, latest_price, df_xbi):
 def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, refresh_interval=60):
     """
     Fetch live minute-level XBI data with auto-refresh and market environment prediction
-
+    
     Args:
         placeholder: Streamlit placeholder for dynamic updates
         model: Trained machine learning model
@@ -246,24 +250,47 @@ def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, 
         df_xbi: Original XBI dataframe
         refresh_interval: Time between data refreshes in seconds (default 60)
     """
+    # Timezone for New York
+    new_york_tz = pytz.timezone('America/New_York')
+    
     while True:
         try:
             # Fetch 1 day of minute-level data for XBI
             df_xbi_minute = fetch_data(["XBI"], period='1d', interval='1m')
 
+            # Get the latest close price
             latest_price = df_xbi_minute.tail(1)["close"].values[0]
-            
+            latest_time = df_xbi_minute.tail(1)["date"].values[0]  # Get the corresponding time
+
             # Predict market environment
             market_env = predict_market_environment(model, X_combined, latest_price, df_xbi)
+
+            # Get current New York time
+            ny_time = datetime.now(new_york_tz).strftime('%Y-%m-%d %H:%M:%S %Z')
+
+            # Clear previous content and display the latest market environment
+            placeholder.empty()
+            placeholder.write(f"Market Environment: {market_env}")
+            placeholder.write(f"Latest New York Time: {ny_time}")
             
             # Clear previous plot and create new one
-            placeholder.empty()
-            
-            # Plot XBI's price minute by minute
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), gridspec_kw={'height_ratios': [3, 1]})
             
             # Price plot
             ax1.plot(df_xbi_minute['date'], df_xbi_minute['close'], label='XBI Price', color='blue')
+            
+            # Add a scatter marker for the latest price
+            ax1.scatter(latest_time, latest_price, color='red', label="Latest Price", zorder=5)
+            
+            # Annotate the latest point with time and price
+            ax1.annotate(f"{ny_time}\n{latest_price:.2f}",
+                         (latest_time, latest_price),
+                         textcoords="offset points",
+                         xytext=(0, 10),  # Offset the text slightly above the point
+                         ha='center',
+                         fontsize=10,
+                         color='red')
+
             ax1.set_title("XBI Price Minute by Minute (Live Update)")
             ax1.set_xlabel('Time')
             ax1.set_ylabel('Price')
@@ -286,7 +313,7 @@ def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, 
             
             # Display plot in Streamlit
             placeholder.pyplot(fig)
-            
+
             # Refresh the plot after the given interval
             time.sleep(refresh_interval)  # Adjust time interval as needed
             
@@ -294,15 +321,15 @@ def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, 
             st.error(f"Error fetching XBI data: {e}")
             break
 
+
 def main():
     st.title("Biotech Market Analysis Dashboard")
     
     # Load tickers and fetch data
     st.write("Loading Biotech Stock Tickers...")
     tickers = load_tickers("Input/Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx")
-    tickers_mini = tickers[:50]  # Limit to first 50 for demonstration
     benchmark_tickers = ["XBI", "SPY"]
-    tickers_full = tickers_mini + benchmark_tickers
+    tickers_full = tickers + benchmark_tickers
     
     # Fetch data
     st.write("Fetching Stock Data...")
