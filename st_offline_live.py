@@ -11,7 +11,7 @@ from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from yahooquery import Ticker
 from data_fetcher import fetch_ticker_data 
-from datetime import datetime
+from datetime import datetime,timedelta
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -285,15 +285,19 @@ def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, 
             # Fetch 1 day of minute-level data for XBI
             df_xbi_minute = fetch_data(["XBI"], period='1d', interval='1m')
 
-            # Get the latest close price
+            # Get the latest close price and time
             latest_price = df_xbi_minute.tail(1)["close"].values[0]
             latest_time = df_xbi_minute.tail(1)["date"].values[0]  # Get the corresponding time
+
+            # Compute the RSI and MACD for the last available data
+            rsi = compute_rsi(df_xbi_minute['close'])
+            macd, macd_signal = compute_macd(df_xbi_minute['close'])
 
             # Predict market environment
             market_env = predict_market_environment(model, X_combined, latest_price, df_xbi)
 
-            # Get current New York time
-            ny_time = datetime.now(new_york_tz).strftime('%Y-%m-%d %H:%M:%S %Z')
+            # Get current New York time miuns 2 minutes due to yfinance lag
+            ny_time = (datetime.now(new_york_tz) - timedelta(minutes=2)).strftime('%Y-%m-%d %H:%M:%S %Z') 
 
             # Clear previous content and display the latest market environment
             placeholder.empty()
@@ -301,15 +305,11 @@ def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, 
             placeholder.write(f"Latest New York Time: {ny_time}")
             
             # Clear previous plot and create new one
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), gridspec_kw={'height_ratios': [3, 1]})
+            fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 15), gridspec_kw={'height_ratios': [3, 1, 1, 1]})
             
-            # Price plot
+            # XBI Price Plot
             ax1.plot(df_xbi_minute['date'], df_xbi_minute['close'], label='XBI Price', color='blue')
-            
-            # Add a scatter marker for the latest price
             ax1.scatter(latest_time, latest_price, color='red', label="Latest Price", zorder=5)
-            
-            # Annotate the latest point with time and price
             ax1.annotate(f"{ny_time}\n{latest_price:.2f}",
                          (latest_time, latest_price),
                          textcoords="offset points",
@@ -317,15 +317,32 @@ def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, 
                          ha='center',
                          fontsize=10,
                          color='red')
-
             ax1.set_title("XBI Price Minute by Minute (Live Update)")
             ax1.set_xlabel('Time')
             ax1.set_ylabel('Price')
             ax1.legend()
             plt.setp(ax1.get_xticklabels(), rotation=45)
-            
-            # Market Environment Prediction Display
-            ax2.text(0.5, 0.5, f"Market Environment: {market_env}", 
+
+            # RSI Plot
+            ax2.plot(df_xbi_minute['date'], rsi, label='RSI', color='green')
+            ax2.axhline(y=70, color='red', linestyle='--', label="Overbought")
+            ax2.axhline(y=30, color='blue', linestyle='--', label="Oversold")
+            ax2.set_title("Relative Strength Index (RSI)")
+            ax2.set_xlabel('Time')
+            ax2.set_ylabel('RSI')
+            ax2.legend()
+
+            # MACD Plot
+            ax3.plot(df_xbi_minute['date'], macd, label='MACD', color='orange')
+            ax3.plot(df_xbi_minute['date'], macd_signal, label='Signal Line', color='red')
+            ax3.axhline(y=0, color='black', linestyle='--')
+            ax3.set_title("MACD and Signal Line")
+            ax3.set_xlabel('Time')
+            ax3.set_ylabel('MACD Value')
+            ax3.legend()
+
+            # Market Environment Display
+            ax4.text(0.5, 0.5, f"Market Environment: {market_env}", 
                      horizontalalignment='center', 
                      verticalalignment='center', 
                      fontsize=15, 
@@ -334,7 +351,7 @@ def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, 
                                else 'red' if market_env == 'Bottom' 
                                else 'yellow', 
                                alpha=0.3))
-            ax2.axis('off')
+            ax4.axis('off')
             
             plt.tight_layout()
             
@@ -382,51 +399,51 @@ def main():
     X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False)
     y_pred = model.predict(X_test)
     
-    st.subheader("Predictions Chart")
-    df_xbi_plot = df_xbi.copy()
-    df_xbi_plot = df_xbi_plot.reset_index(drop=True)
+    # st.subheader("Predictions Chart")
+    # df_xbi_plot = df_xbi.copy()
+    # df_xbi_plot = df_xbi_plot.reset_index(drop=True)
         
-    # Create a slice of df_xbi corresponding to the test set
-    df_xbi_test = df_xbi_plot.iloc[-len(y_test):]
+    # # Create a slice of df_xbi corresponding to the test set
+    # df_xbi_test = df_xbi_plot.iloc[-len(y_test):]
 
-    # Create figure with subplots
-    plt.figure(figsize=(15, 10))
+    # # Create figure with subplots
+    # plt.figure(figsize=(15, 10))
 
-    # Plot actual XBI prices
-    plt.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
+    # # Plot actual XBI prices
+    # plt.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
 
-    # Highlight prediction points
-    top_indices = y_test == 1
-    bottom_indices = y_test == -1
+    # # Highlight prediction points
+    # top_indices = y_test == 1
+    # bottom_indices = y_test == -1
 
-    plt.scatter(
-        df_xbi_test.loc[top_indices, 'date'], 
-        df_xbi_test.loc[top_indices, 'adjclose'], 
-        color='green', 
-        marker='^', 
-        label='Predicted Top'
-    )
+    # plt.scatter(
+    #     df_xbi_test.loc[top_indices, 'date'], 
+    #     df_xbi_test.loc[top_indices, 'adjclose'], 
+    #     color='green', 
+    #     marker='^', 
+    #     label='Predicted Top'
+    # )
 
-    plt.scatter(
-        df_xbi_test.loc[bottom_indices, 'date'], 
-        df_xbi_test.loc[bottom_indices, 'adjclose'], 
-        color='red', 
-        marker='v', 
-        label='Predicted Bottom'
-    )
+    # plt.scatter(
+    #     df_xbi_test.loc[bottom_indices, 'date'], 
+    #     df_xbi_test.loc[bottom_indices, 'adjclose'], 
+    #     color='red', 
+    #     marker='v', 
+    #     label='Predicted Bottom'
+    # )
 
-    plt.title('XBI Price with Market Condition Predictions')
-    plt.xlabel('Date')
-    plt.ylabel('Adjusted Close Price')
-    plt.legend()
-    plt.xticks(rotation=45)
-    plt.tight_layout()
+    # plt.title('XBI Price with Market Condition Predictions')
+    # plt.xlabel('Date')
+    # plt.ylabel('Adjusted Close Price')
+    # plt.legend()
+    # plt.xticks(rotation=45)
+    # plt.tight_layout()
 
-    # Display the plot in Streamlit
-    st.pyplot(plt)
+    # # Display the plot in Streamlit
+    # st.pyplot(plt)
 
-    # Clear the figure after plotting (optional)
-    plt.clf()
+    # # Clear the figure after plotting (optional)
+    # plt.clf()
 
     ##############
     
