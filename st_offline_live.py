@@ -155,7 +155,34 @@ def prepare_features_and_targets(df_ticker_data, tickers_mini):
     df_xbi['target_XBI'] = 0
     df_xbi.loc[df_xbi['adjclose'] == df_xbi['adjclose'].rolling(window=30).max(), 'target_XBI'] = 1
     df_xbi.loc[df_xbi['adjclose'] == df_xbi['adjclose'].rolling(window=30).min(), 'target_XBI'] = -1
-    # OUTPUT THIS
+
+    st.subheader("Actual Condition Visualization")
+    # Plotting the data
+    plt.figure(figsize=(14,7))
+
+    # Plot the adjusted closing prices
+    plt.plot(df_xbi['adjclose'], label='Adj Close', color='blue')
+
+    # Plot the tops and bottoms based on target_XBI
+    plt.scatter(df_xbi.index[df_xbi['target_XBI'] == 1], df_xbi['adjclose'][df_xbi['target_XBI'] == 1], 
+                label='Tops', marker='^', color='green', alpha=1, zorder=5)
+
+    plt.scatter(df_xbi.index[df_xbi['target_XBI'] == -1], df_xbi['adjclose'][df_xbi['target_XBI'] == -1], 
+                label='Bottoms', marker='v', color='red', alpha=1, zorder=5)
+
+    # Adding labels and title
+    plt.title('XBI Adjusted Close Prices with Tops and Bottoms')
+    plt.xlabel('Date')
+    plt.ylabel('Adjusted Close Price')
+    plt.legend()
+    plt.grid(True)
+
+    # Display the plot in Streamlit
+    st.pyplot(plt)
+
+    # Clear the figure after plotting (optional)
+    plt.clf()
+
 
     # Calculate indicators for SPY
     df_spy['7d_ma_SPY'] = df_spy['adjclose'].rolling(window=7).mean()
@@ -354,6 +381,54 @@ def main():
     # Split data for evaluation
     X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False)
     y_pred = model.predict(X_test)
+    
+    st.subheader("Predictions Chart")
+    df_xbi_plot = df_xbi.copy()
+    df_xbi_plot = df_xbi_plot.reset_index(drop=True)
+        
+    # Create a slice of df_xbi corresponding to the test set
+    df_xbi_test = df_xbi_plot.iloc[-len(y_test):]
+
+    # Create figure with subplots
+    plt.figure(figsize=(15, 10))
+
+    # Plot actual XBI prices
+    plt.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
+
+    # Highlight prediction points
+    top_indices = y_test == 1
+    bottom_indices = y_test == -1
+
+    plt.scatter(
+        df_xbi_test.loc[top_indices, 'date'], 
+        df_xbi_test.loc[top_indices, 'adjclose'], 
+        color='green', 
+        marker='^', 
+        label='Predicted Top'
+    )
+
+    plt.scatter(
+        df_xbi_test.loc[bottom_indices, 'date'], 
+        df_xbi_test.loc[bottom_indices, 'adjclose'], 
+        color='red', 
+        marker='v', 
+        label='Predicted Bottom'
+    )
+
+    plt.title('XBI Price with Market Condition Predictions')
+    plt.xlabel('Date')
+    plt.ylabel('Adjusted Close Price')
+    plt.legend()
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    # Display the plot in Streamlit
+    st.pyplot(plt)
+
+    # Clear the figure after plotting (optional)
+    plt.clf()
+
+    ##############
     
     # Display model metrics
     st.subheader("Classification Metrics")
