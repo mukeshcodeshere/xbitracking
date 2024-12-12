@@ -160,14 +160,14 @@ def prepare_features_and_targets(df_ticker_data, tickers_mini):
     # Plotting the data
     plt.figure(figsize=(14,7))
 
-    # Plot the adjusted closing prices
-    plt.plot(df_xbi['adjclose'], label='Adj Close', color='blue')
+    # Plot the adjusted closing prices, using 'date' for the x-axis
+    plt.plot(df_xbi['date'], df_xbi['adjclose'], label='Adj Close', color='blue')
 
-    # Plot the tops and bottoms based on target_XBI
-    plt.scatter(df_xbi.index[df_xbi['target_XBI'] == 1], df_xbi['adjclose'][df_xbi['target_XBI'] == 1], 
+    # Plot the tops and bottoms based on target_XBI, using 'date' for the x-axis
+    plt.scatter(df_xbi['date'][df_xbi['target_XBI'] == 1], df_xbi['adjclose'][df_xbi['target_XBI'] == 1], 
                 label='Tops', marker='^', color='green', alpha=1, zorder=5)
 
-    plt.scatter(df_xbi.index[df_xbi['target_XBI'] == -1], df_xbi['adjclose'][df_xbi['target_XBI'] == -1], 
+    plt.scatter(df_xbi['date'][df_xbi['target_XBI'] == -1], df_xbi['adjclose'][df_xbi['target_XBI'] == -1], 
                 label='Bottoms', marker='v', color='red', alpha=1, zorder=5)
 
     # Adding labels and title
@@ -383,7 +383,7 @@ def main():
         # Fetch data
         st.write("Fetching Stock Data...")
         df_ticker_daily = fetch_data(tickers_full)
-        
+
         # Prepare features and targets
         st.write("Preparing Model Features...")
         X_combined, y_combined = prepare_features_and_targets(df_ticker_daily, tickers_full)
