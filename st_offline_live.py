@@ -365,114 +365,125 @@ def fetch_live_xbi_data(placeholder, model, X_combined, df_ticker_data, df_xbi, 
             st.error(f"Error fetching XBI data: {e}")
             break
 
-
 def main():
-    st.title("Biotech Market Analysis Dashboard")
-    
-    # Load tickers and fetch data
-    st.write("Loading Biotech Stock Tickers...")
-    tickers = load_tickers("Input/Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx")
-    benchmark_tickers = ["XBI", "SPY"]
-    tickers_full = tickers + benchmark_tickers
-    
-    # Fetch data
-    st.write("Fetching Stock Data...")
-    df_ticker_daily = fetch_data(tickers_full)
-    
-    # Prepare features and targets
-    st.write("Preparing Model Features...")
-    X_combined, y_combined = prepare_features_and_targets(df_ticker_daily, tickers_full)
-    
-    # Identify the XBI dataframe for feature extraction
-    df_xbi = df_ticker_daily[df_ticker_daily['symbol'] == 'XBI'].copy()
-    
-    # Train model
-    st.write("Training Machine Learning Model...")
-    models = initialize_models()
-    model = models['DecisionTree']
-    model.fit(X_combined, y_combined)
-    
-    # Model Evaluation Section
-    st.header("Model Evaluation")
-    
-    # Split data for evaluation
-    X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False)
-    y_pred = model.predict(X_test)
-    
-    # st.subheader("Predictions Chart")
-    # df_xbi_plot = df_xbi.copy()
-    # df_xbi_plot = df_xbi_plot.reset_index(drop=True)
+    # Prompt for password before accessing the app
+    password = st.text_input("Enter password to access the app:", type="password")
+    correct_password = "ADAR1"  # Replace with your desired password
+
+    # Check if the entered password is correct
+    if password == correct_password:
+        st.title("Biotech Market Analysis Dashboard")
         
-    # # Create a slice of df_xbi corresponding to the test set
-    # df_xbi_test = df_xbi_plot.iloc[-len(y_test):]
+        # Load tickers and fetch data
+        st.write("Loading Biotech Stock Tickers...")
+        tickers = load_tickers("Input/Complete-List-of-Biotech-Stocks-Listed-on-NASDAQ-Jan-1-24.xlsx")
+        benchmark_tickers = ["XBI", "SPY"]
+        tickers_full = tickers + benchmark_tickers
+        
+        # Fetch data
+        st.write("Fetching Stock Data...")
+        df_ticker_daily = fetch_data(tickers_full)
+        
+        # Prepare features and targets
+        st.write("Preparing Model Features...")
+        X_combined, y_combined = prepare_features_and_targets(df_ticker_daily, tickers_full)
+        
+        # Identify the XBI dataframe for feature extraction
+        df_xbi = df_ticker_daily[df_ticker_daily['symbol'] == 'XBI'].copy()
+        
+        # Train model
+        st.write("Training Machine Learning Model...")
+        models = initialize_models()
+        model = models['DecisionTree']
+        model.fit(X_combined, y_combined)
+        
+        # Model Evaluation Section
+        st.header("Model Evaluation")
+        
+        # Split data for evaluation
+        X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False)
+        y_pred = model.predict(X_test)
+        
+        # Display model metrics
+        st.subheader("Classification Metrics")
+        st.text("Classification Report:")
+        st.code(classification_report(y_test, y_pred))
+        
+        st.subheader("Confusion Matrix")
+        st.text(confusion_matrix(y_test, y_pred))
+        
+        st.metric("Test Accuracy", f"{accuracy_score(y_test, y_pred):.2%}")
+        
+        # Plot Decision Tree
+        st.subheader("Decision Tree Visualization")
+        plt.figure(figsize=(20, 10))
+        plot_tree(model, 
+                  feature_names=X_combined.columns, 
+                  class_names=['Bottom', 'Neutral', 'Top'], 
+                  filled=True, 
+                  rounded=True)
+        st.pyplot(plt.gcf())
+        plt.close()
 
-    # # Create figure with subplots
-    # plt.figure(figsize=(15, 10))
+        ##############
+        # Plot Predictions Chart
+        st.subheader("Predictions Chart")
+        
+        df_xbi_plot = df_xbi.copy()
+        df_xbi_plot = df_xbi_plot.reset_index(drop=True)
+        
+        # Create a slice of df_xbi corresponding to the test set
+        df_xbi_test = df_xbi_plot.iloc[-len(y_test):]
 
-    # # Plot actual XBI prices
-    # plt.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
+        # Create figure with subplots
+        plt.figure(figsize=(15, 10))
 
-    # # Highlight prediction points
-    # top_indices = y_test == 1
-    # bottom_indices = y_test == -1
+        # Plot actual XBI prices
+        plt.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
 
-    # plt.scatter(
-    #     df_xbi_test.loc[top_indices, 'date'], 
-    #     df_xbi_test.loc[top_indices, 'adjclose'], 
-    #     color='green', 
-    #     marker='^', 
-    #     label='Predicted Top'
-    # )
+        # Highlight prediction points
+        top_indices = y_test == 1
+        bottom_indices = y_test == -1
 
-    # plt.scatter(
-    #     df_xbi_test.loc[bottom_indices, 'date'], 
-    #     df_xbi_test.loc[bottom_indices, 'adjclose'], 
-    #     color='red', 
-    #     marker='v', 
-    #     label='Predicted Bottom'
-    # )
+        plt.scatter(
+            df_xbi_test.loc[top_indices, 'date'], 
+            df_xbi_test.loc[top_indices, 'adjclose'], 
+            color='green', 
+            marker='^', 
+            label='Predicted Top'
+        )
 
-    # plt.title('XBI Price with Market Condition Predictions')
-    # plt.xlabel('Date')
-    # plt.ylabel('Adjusted Close Price')
-    # plt.legend()
-    # plt.xticks(rotation=45)
-    # plt.tight_layout()
+        plt.scatter(
+            df_xbi_test.loc[bottom_indices, 'date'], 
+            df_xbi_test.loc[bottom_indices, 'adjclose'], 
+            color='red', 
+            marker='v', 
+            label='Predicted Bottom'
+        )
 
-    # # Display the plot in Streamlit
-    # st.pyplot(plt)
+        plt.title('XBI Price with Market Condition Predictions')
+        plt.xlabel('Date')
+        plt.ylabel('Adjusted Close Price')
+        plt.legend()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
 
-    # # Clear the figure after plotting (optional)
-    # plt.clf()
+        # Display the plot in Streamlit
+        st.pyplot(plt)
 
-    ##############
+        # Clear the figure after plotting (optional)
+        plt.clf()
+
+        ##############
+        
+        # Create a placeholder for live XBI minute data
+        xbi_minute_placeholder = st.empty()
+        
+        # Fetch and auto-refresh XBI minute data with market environment prediction
+        fetch_live_xbi_data(xbi_minute_placeholder, model, X_combined, df_ticker_daily, df_xbi, refresh_interval=60)
     
-    # Display model metrics
-    st.subheader("Classification Metrics")
-    st.text("Classification Report:")
-    st.code(classification_report(y_test, y_pred))
-    
-    st.subheader("Confusion Matrix")
-    st.text(confusion_matrix(y_test, y_pred))
-    
-    st.metric("Test Accuracy", f"{accuracy_score(y_test, y_pred):.2%}")
-    
-    # Plot Decision Tree
-    st.subheader("Decision Tree Visualization")
-    plt.figure(figsize=(20, 10))
-    plot_tree(model, 
-              feature_names=X_combined.columns, 
-              class_names=['Bottom', 'Neutral', 'Top'], 
-              filled=True, 
-              rounded=True)
-    st.pyplot(plt.gcf())
-    plt.close()
-
-    # Create a placeholder for live XBI minute data
-    xbi_minute_placeholder = st.empty()
-    
-    # Fetch and auto-refresh XBI minute data with market environment prediction
-    fetch_live_xbi_data(xbi_minute_placeholder, model, X_combined, df_ticker_daily, df_xbi, refresh_interval=60)
+    else:
+        st.error("Incorrect password. Please try again.")
 
 if __name__ == "__main__":
     main()
