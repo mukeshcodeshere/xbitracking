@@ -427,52 +427,52 @@ def main():
 
         ##############
         # Plot Predictions Chart
-        st.subheader("Predictions Chart")
+        # st.subheader("Predictions Chart")
         
-        df_xbi_plot = df_xbi.copy()
-        df_xbi_plot = df_xbi_plot.reset_index(drop=True)
+        # df_xbi_plot = df_xbi.copy()
+        # df_xbi_plot = df_xbi_plot.reset_index(drop=True)
         
-        # Create a slice of df_xbi corresponding to the test set
-        df_xbi_test = df_xbi_plot.iloc[-len(y_test):]
+        # # Create a slice of df_xbi corresponding to the test set
+        # df_xbi_test = df_xbi_plot.iloc[-len(y_test):]
 
-        # Create figure with subplots
-        plt.figure(figsize=(15, 10))
+        # # Create figure with subplots
+        # plt.figure(figsize=(15, 10))
 
-        # Plot actual XBI prices
-        plt.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
+        # # Plot actual XBI prices
+        # plt.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
 
-        # Highlight prediction points
-        top_indices = y_test == 1
-        bottom_indices = y_test == -1
+        # # Highlight prediction points
+        # top_indices = y_test == 1
+        # bottom_indices = y_test == -1
 
-        plt.scatter(
-            df_xbi_test.loc[top_indices, 'date'], 
-            df_xbi_test.loc[top_indices, 'adjclose'], 
-            color='green', 
-            marker='^', 
-            label='Predicted Top'
-        )
+        # plt.scatter(
+        #     df_xbi_test.loc[top_indices, 'date'], 
+        #     df_xbi_test.loc[top_indices, 'adjclose'], 
+        #     color='green', 
+        #     marker='^', 
+        #     label='Predicted Top'
+        # )
 
-        plt.scatter(
-            df_xbi_test.loc[bottom_indices, 'date'], 
-            df_xbi_test.loc[bottom_indices, 'adjclose'], 
-            color='red', 
-            marker='v', 
-            label='Predicted Bottom'
-        )
+        # plt.scatter(
+        #     df_xbi_test.loc[bottom_indices, 'date'], 
+        #     df_xbi_test.loc[bottom_indices, 'adjclose'], 
+        #     color='red', 
+        #     marker='v', 
+        #     label='Predicted Bottom'
+        # )
 
-        plt.title('XBI Price with Market Condition Predictions')
-        plt.xlabel('Date')
-        plt.ylabel('Adjusted Close Price')
-        plt.legend()
-        plt.xticks(rotation=45)
-        plt.tight_layout()
+        # plt.title('XBI Price with Market Condition Predictions')
+        # plt.xlabel('Date')
+        # plt.ylabel('Adjusted Close Price')
+        # plt.legend()
+        # plt.xticks(rotation=45)
+        # plt.tight_layout()
 
-        # Display the plot in Streamlit
-        st.pyplot(plt)
+        # # Display the plot in Streamlit
+        # st.pyplot(plt)
 
-        # Clear the figure after plotting (optional)
-        plt.clf()
+        # # Clear the figure after plotting (optional)
+        # plt.clf()
 
         ##############
         

@@ -124,7 +124,7 @@ def fetch_data(tickers, period='max', interval='1d'):
     """Fetch data for the tickers."""
     return fetch_ticker_data(tickers, period=period, interval=interval, filename=None)
 
-def prepare_features_and_targets(df_ticker_data, tickers_mini):
+def prepare_features_and_targets(df_ticker_data, tickers_mini,input_window_days):
     # Filter data for XBI and SPY
     if 'symbol' not in df_ticker_data.columns:
         raise ValueError("The 'symbol' column is missing in df_ticker_data.")
@@ -153,8 +153,95 @@ def prepare_features_and_targets(df_ticker_data, tickers_mini):
     
     # Define target for XBI: Local maxima = Top, Local minima = Bottom
     df_xbi['target_XBI'] = 0
-    df_xbi.loc[df_xbi['adjclose'] == df_xbi['adjclose'].rolling(window=30).max(), 'target_XBI'] = 1
-    df_xbi.loc[df_xbi['adjclose'] == df_xbi['adjclose'].rolling(window=30).min(), 'target_XBI'] = -1
+    df_xbi.loc[df_xbi['adjclose'] == df_xbi['adjclose'].rolling(window=input_window_days).max(), 'target_XBI'] = 1
+    df_xbi.loc[df_xbi['adjclose'] == df_xbi['adjclose'].rolling(window=input_window_days).min(), 'target_XBI'] = -1
+
+    st.subheader("Actual Condition Visualization")
+    # Plotting the data
+    plt.figure(figsize=(14,7))
+
+    # Plot the adjusted closing prices, using 'date' for the x-axis
+    plt.plot(df_xbi['date'], df_xbi['adjclose'], label='Adj Close', color='blue')
+
+    # Plot the tops and bottoms based on target_XBI, using 'date' for the x-axis
+    plt.scatter(df_xbi['date'][df_xbi['target_XBI'] == 1], df_xbi['adjclose'][df_xbi['target_XBI'] == 1], 
+                label='Tops', marker='^', color='green', alpha=1, zorder=5)
+
+    plt.scatter(df_xbi['date'][df_xbi['target_XBI'] == -1], df_xbi['adjclose'][df_xbi['target_XBI'] == -1], 
+                label='Bottoms', marker='v', color='red', alpha=1, zorder=5)
+
+    # Adding labels and title
+    plt.title('XBI Adjusted Close Prices with Tops and Bottoms')
+    plt.xlabel('Date')
+    plt.ylabel('Adjusted Close Price')
+    plt.legend()
+    plt.grid(True)
+
+    # Display the plot in Streamlit
+    st.pyplot(plt)
+
+    # Clear the figure after plotting (optional)
+    plt.clf()
+
+
+    # Calculate indicators for SPY
+    df_spy['7d_ma_SPY'] = df_spy['adjclose'].rolling(window=7).mean()
+    df_spy['14d_rsi_SPY'] = compute_rsi(df_spy['adjclose'])
+    df_spy['30d_ma_SPY'] = df_spy['adjclose'].rolling(window=30).mean()
+    df_spy['macd_SPY'], df_spy['macd_signal_SPY'] = compute_macd(df_spy['adjclose'])
+    df_spy['volatility_SPY'] = df_spy['adjclose'].rolling(window=14).std()
+    
+    # Merge SPY features into XBI
+    df_combined = pd.merge(
+        df_xbi, 
+        df_spy[['date', 'adjclose', '7d_ma_SPY', '14d_rsi_SPY', '30d_ma_SPY', 'macd_SPY', 'macd_signal_SPY', 'volatility_SPY']], 
+        on='date', 
+        suffixes=('_XBI', '_SPY')
+    )
+    
+    # Filter columns for features and target
+    feature_columns = ['7d_ma_XBI', '14d_rsi_XBI', '30d_ma_XBI', 'macd_XBI', 'macd_signal_XBI', 
+                       'volatility_XBI', 
+                       '7d_ma_SPY', '14d_rsi_SPY', '30d_ma_SPY', 'macd_SPY', 'macd_signal_SPY', 'volatility_SPY']
+
+    #feature_columns = ['new_highs_ratio', 'new_lows_ratio',  '30d_ma_SPY']
+    X_combined = df_combined[feature_columns].fillna(0)  # Handle any missing values in features
+    y_combined = df_combined['target_XBI']  # The target variable
+    
+    return X_combined, y_combined
+
+
+def prepare_features_and_targets_old(df_ticker_data, tickers_mini):
+    # Filter data for XBI and SPY
+    if 'symbol' not in df_ticker_data.columns:
+        raise ValueError("The 'symbol' column is missing in df_ticker_data.")
+    """Prepare features and targets for modeling."""
+    # Filter data for XBI and SPY
+    df_xbi = df_ticker_data[df_ticker_data['symbol'] == 'XBI'].copy()
+    df_spy = df_ticker_data[df_ticker_data['symbol'] == 'SPY'].copy()
+    
+    # Calculate indicators for XBI
+    df_xbi['7d_ma_XBI'] = df_xbi['adjclose'].rolling(window=7).mean()
+    df_xbi['14d_rsi_XBI'] = compute_rsi(df_xbi['adjclose'])
+    df_xbi['30d_ma_XBI'] = df_xbi['adjclose'].rolling(window=30).mean()
+    df_xbi['macd_XBI'], df_xbi['macd_signal_XBI'] = compute_macd(df_xbi['adjclose'])
+    df_xbi['volatility_XBI'] = df_xbi['adjclose'].rolling(window=14).std()
+    
+    # Compute market breadth indicators
+    market_breadth = compute_market_breadth_indicators(df_ticker_data, tickers_mini)
+    
+    # Add market breadth indicators to the XBI dataframe
+    df_xbi['pct_above_200d_ma'] = market_breadth['pct_above_200d_ma']
+    df_xbi['market_return_std'] = market_breadth['market_return_std']
+    df_xbi['new_highs_ratio'] = market_breadth['new_highs_ratio']
+    df_xbi['new_lows_ratio'] = market_breadth['new_lows_ratio']
+    df_xbi['avg_stock_correlation'] = market_breadth['avg_stock_correlation']
+    df_xbi['sector_momentum'] = market_breadth['sector_momentum']
+    
+    # Define target for XBI: Local maxima = Top, Local minima = Bottom
+    df_xbi['target_XBI'] = 0
+    df_xbi.loc[df_xbi['adjclose'] == df_xbi['adjclose'].rolling(window=365).max(), 'target_XBI'] = 1
+    df_xbi.loc[df_xbi['adjclose'] == df_xbi['adjclose'].rolling(window=365).min(), 'target_XBI'] = -1
 
     st.subheader("Actual Condition Visualization")
     # Plotting the data
@@ -384,106 +471,181 @@ def main():
         st.write("Fetching Stock Data...")
         df_ticker_daily = fetch_data(tickers_full)
 
-        # Prepare features and targets
-        st.write("Preparing Model Features...")
-        X_combined, y_combined = prepare_features_and_targets(df_ticker_daily, tickers_full)
-        
-        # Identify the XBI dataframe for feature extraction
-        df_xbi = df_ticker_daily[df_ticker_daily['symbol'] == 'XBI'].copy()
-        
-        # Train model
-        st.write("Training Machine Learning Model...")
-        models = initialize_models()
-        model = models['DecisionTree']
-        model.fit(X_combined, y_combined)
-        
-        # Model Evaluation Section
-        st.header("Model Evaluation")
-        
-        # Split data for evaluation
-        X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False)
-        y_pred = model.predict(X_test)
-        
-        # Display model metrics
-        st.subheader("Classification Metrics")
-        st.text("Classification Report:")
-        st.code(classification_report(y_test, y_pred))
-        
-        st.subheader("Confusion Matrix")
-        st.text(confusion_matrix(y_test, y_pred))
-        
-        st.metric("Test Accuracy", f"{accuracy_score(y_test, y_pred):.2%}")
-        
-        # Plot Decision Tree
-        st.subheader("Decision Tree Visualization")
-        plt.figure(figsize=(20, 10))
-        plot_tree(model, 
-                  feature_names=X_combined.columns, 
-                  class_names=['Bottom', 'Neutral', 'Top'], 
-                  filled=True, 
-                  rounded=True)
-        st.pyplot(plt.gcf())
-        plt.close()
+        # Ask the user for integer input
+        input_window_days = st.number_input("Enter the window (days) for the model:", min_value=1, step=1, value=150) 
 
-        ##############
-        # Plot Predictions Chart
-        st.subheader("Predictions Chart")
-        
-        df_xbi_plot = df_xbi.copy()
-        df_xbi_plot = df_xbi_plot.reset_index(drop=True)
-        
-        # Create a slice of df_xbi corresponding to the test set
-        df_xbi_test = df_xbi_plot.iloc[-len(y_test):]
+        # Proceed if the input is valid
+        if input_window_days:
+            # Prepare features and targets
+            st.write("Preparing Model Features...")
+            X_combined, y_combined = prepare_features_and_targets(df_ticker_daily, tickers_full,input_window_days)
+            
+            # Identify the XBI dataframe for feature extraction
+            df_xbi = df_ticker_daily[df_ticker_daily['symbol'] == 'XBI'].copy()
+            
+            # Train model
+            st.write("Training Machine Learning Model...")
+            models = initialize_models()
+            model = models['DecisionTree']
+            model.fit(X_combined, y_combined)
+            
+            # Model Evaluation Section
+            st.header("Model Evaluation")
+            
+            # Split data for evaluation
+            X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42, shuffle=False)
+            y_pred = model.predict(X_test)
+            
+            # Display model metrics
+            st.subheader("Classification Metrics")
+            st.text("Classification Report:")
+            st.code(classification_report(y_test, y_pred))
+            
+            st.subheader("Confusion Matrix")
+            st.text(confusion_matrix(y_test, y_pred))
+            
+            st.metric("Test Accuracy", f"{accuracy_score(y_test, y_pred):.2%}")
+            
+            # Plot Decision Tree
+            st.subheader("Decision Tree Visualization")
+            plt.figure(figsize=(20, 10))
+            plot_tree(model, 
+                    feature_names=X_combined.columns, 
+                    class_names=['Bottom', 'Neutral', 'Top'], 
+                    filled=True, 
+                    rounded=True)
+            st.pyplot(plt.gcf())
+            plt.close()
 
-        # Create figure with subplots
-        plt.figure(figsize=(15, 10))
+            ##############
+            # Plot Predictions Chart
+            st.subheader("Predictions Chart")
+            
+            df_xbi_plot = df_xbi.copy()
+            df_xbi_plot = df_xbi_plot.reset_index(drop=True)
+            
+            # Create a slice of df_xbi corresponding to the test set
+            df_xbi_test = df_xbi_plot.iloc[-len(y_test):]
 
-        # Plot actual XBI prices
-        plt.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
+            # Create figure with subplots
+            plt.figure(figsize=(15, 10))
 
-        # Highlight prediction points
-        top_indices = y_test == 1
-        bottom_indices = y_test == -1
+            # Plot actual XBI prices
+            plt.plot(df_xbi_test['date'], df_xbi_test['adjclose'], label='XBI Price', color='blue')
 
-        plt.scatter(
-            df_xbi_test.loc[top_indices, 'date'], 
-            df_xbi_test.loc[top_indices, 'adjclose'], 
-            color='green', 
-            marker='^', 
-            label='Predicted Top'
-        )
+            # Highlight prediction points
+            top_indices = y_test == 1
+            bottom_indices = y_test == -1
 
-        plt.scatter(
-            df_xbi_test.loc[bottom_indices, 'date'], 
-            df_xbi_test.loc[bottom_indices, 'adjclose'], 
-            color='red', 
-            marker='v', 
-            label='Predicted Bottom'
-        )
+            plt.scatter(
+                df_xbi_test.loc[top_indices, 'date'], 
+                df_xbi_test.loc[top_indices, 'adjclose'], 
+                color='green', 
+                marker='^', 
+                label='Predicted Top'
+            )
 
-        plt.title('XBI Price with Market Condition Predictions')
-        plt.xlabel('Date')
-        plt.ylabel('Adjusted Close Price')
-        plt.legend()
-        plt.xticks(rotation=45)
-        plt.tight_layout()
+            plt.scatter(
+                df_xbi_test.loc[bottom_indices, 'date'], 
+                df_xbi_test.loc[bottom_indices, 'adjclose'], 
+                color='red', 
+                marker='v', 
+                label='Predicted Bottom'
+            )
 
-        # Display the plot in Streamlit
-        st.pyplot(plt)
+            plt.title('XBI Price with Market Condition Predictions')
+            plt.xlabel('Date')
+            plt.ylabel('Adjusted Close Price')
+            plt.legend()
+            plt.xticks(rotation=45)
+            plt.tight_layout()
 
-        # Clear the figure after plotting (optional)
-        plt.clf()
+            # Display the plot in Streamlit
+            st.pyplot(plt)
 
-        ##############
-        
-        # Create a placeholder for live XBI minute data
-        xbi_minute_placeholder = st.empty()
-        
-        # Fetch and auto-refresh XBI minute data with market environment prediction
-        fetch_live_xbi_data(xbi_minute_placeholder, model, X_combined, df_ticker_daily, df_xbi, refresh_interval=60)
-    
-    else:
-        st.error("Incorrect password. Please try again.")
+            # Clear the figure after plotting (optional)
+            plt.clf()
+            
+            ##############
+            # Display Predicted Tops and Bottoms with Future Prices
+            st.subheader("Predicted Tops and Bottoms with Future Prices")
+
+            # Create a DataFrame to store predictions
+            predictions_df = df_xbi_test.copy()
+            predictions_df['Prediction'] = y_test  # Add the prediction column
+
+            # Get user input for the shift value
+            shift_value = st.number_input("Enter the shift value (days)", min_value=1, max_value=365, value=30, step=1)
+
+            # Calculate the price after the specified number of days (user input)
+            predictions_df['Price_After_X_Days'] = predictions_df['adjclose'].shift(-shift_value)
+
+            # Calculate the price change (absolute and percentage)
+            predictions_df['Price_Change'] = predictions_df['Price_After_X_Days'] - predictions_df['adjclose']
+            predictions_df['Price_Change_%'] = (predictions_df['Price_Change'] / predictions_df['adjclose']) * 100
+
+            # Filter for predicted tops and bottoms
+            predicted_tops = predictions_df[predictions_df['Prediction'] == 1][['date', 'adjclose', 'Price_After_X_Days', 'Price_Change', 'Price_Change_%']]
+            predicted_bottoms = predictions_df[predictions_df['Prediction'] == -1][['date', 'adjclose', 'Price_After_X_Days', 'Price_Change', 'Price_Change_%']]
+
+            # Calculate the correct top and bottom predictions
+            correct_tops = predicted_tops[predicted_tops['Price_Change'] < 0].shape[0]  # Tops where price decreases
+            correct_bottoms = predicted_bottoms[predicted_bottoms['Price_Change'] > 0].shape[0]  # Bottoms where price increases
+
+            # Calculate the percentages
+            total_tops = len(predicted_tops)
+            total_bottoms = len(predicted_bottoms)
+
+            top_accuracy = (correct_tops / total_tops) * 100 if total_tops > 0 else 0
+            bottom_accuracy = (correct_bottoms / total_bottoms) * 100 if total_bottoms > 0 else 0
+
+            # Display the accuracy percentages
+            st.write(f"### Accuracy of Predicted Tops and Bottoms")
+            st.write(f"**Correct Top Predictions:** {correct_tops} out of {total_tops} ({top_accuracy:.2f}%)")
+            st.write(f"**Correct Bottom Predictions:** {correct_bottoms} out of {total_bottoms} ({bottom_accuracy:.2f}%)")
+
+            # Function to apply the color formatting to the percentage change column
+            def colorize_percent_change(val):
+                color = 'red' if val < 0 else 'green' if val > 0 else 'black'
+                return f'color: {color}'
+
+            # Display the results in Streamlit with conditional formatting
+            st.write(f"### Predicted Tops (Price After {shift_value} Days)")
+            st.dataframe(
+                predicted_tops.rename(columns={
+                    'date': 'Date',
+                    'adjclose': 'Current Price',
+                    'Price_After_X_Days': f'Price After {shift_value} Days',
+                    'Price_Change': 'Price Change',
+                    'Price_Change_%': '% Change'
+                }).style.applymap(colorize_percent_change, subset=['% Change']),
+                use_container_width=True
+            )
+
+            st.write(f"### Predicted Bottoms (Price After {shift_value} Days)")
+            st.dataframe(
+                predicted_bottoms.rename(columns={
+                    'date': 'Date',
+                    'adjclose': 'Current Price',
+                    'Price_After_X_Days': f'Price After {shift_value} Days',
+                    'Price_Change': 'Price Change',
+                    'Price_Change_%': '% Change'
+                }).style.applymap(colorize_percent_change, subset=['% Change']),
+                use_container_width=True
+            )
+
+
+            ##############
+
+            # Create a placeholder for live XBI minute data
+            xbi_minute_placeholder = st.empty()
+            
+            # Fetch and auto-refresh XBI minute data with market environment prediction
+            fetch_live_xbi_data(xbi_minute_placeholder, model, X_combined, df_ticker_daily, df_xbi, refresh_interval=60)
+
+        else:
+            st.error("Incorrect password. Please try again.")
+
 
 if __name__ == "__main__":
     main()

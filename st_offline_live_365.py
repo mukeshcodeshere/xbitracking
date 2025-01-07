@@ -472,7 +472,7 @@ def main():
         df_ticker_daily = fetch_data(tickers_full)
 
         # Ask the user for integer input
-        input_window_days = st.number_input("Enter the window (days) for the model:", min_value=1, step=1, value=30) 
+        input_window_days = st.number_input("Enter the window (days) for the model:", min_value=1, step=1, value=150) 
 
         # Proceed if the input is valid
         if input_window_days:
@@ -565,9 +565,78 @@ def main():
 
             # Clear the figure after plotting (optional)
             plt.clf()
+            
+            ##############
+            # Display Predicted Tops and Bottoms with Future Prices
+            st.subheader("Predicted Tops and Bottoms with Future Prices")
+
+            # Create a DataFrame to store predictions
+            predictions_df = df_xbi_test.copy()
+            predictions_df['Prediction'] = y_test  # Add the prediction column
+
+            # Get user input for the shift value
+            shift_value = st.number_input("Enter the shift value (days)", min_value=1, max_value=365, value=30, step=1)
+
+            # Calculate the price after the specified number of days (user input)
+            predictions_df['Price_After_X_Days'] = predictions_df['adjclose'].shift(-shift_value)
+
+            # Calculate the price change (absolute and percentage)
+            predictions_df['Price_Change'] = predictions_df['Price_After_X_Days'] - predictions_df['adjclose']
+            predictions_df['Price_Change_%'] = (predictions_df['Price_Change'] / predictions_df['adjclose']) * 100
+
+            # Filter for predicted tops and bottoms
+            predicted_tops = predictions_df[predictions_df['Prediction'] == 1][['date', 'adjclose', 'Price_After_X_Days', 'Price_Change', 'Price_Change_%']]
+            predicted_bottoms = predictions_df[predictions_df['Prediction'] == -1][['date', 'adjclose', 'Price_After_X_Days', 'Price_Change', 'Price_Change_%']]
+
+            # Calculate the correct top and bottom predictions
+            correct_tops = predicted_tops[predicted_tops['Price_Change'] < 0].shape[0]  # Tops where price decreases
+            correct_bottoms = predicted_bottoms[predicted_bottoms['Price_Change'] > 0].shape[0]  # Bottoms where price increases
+
+            # Calculate the percentages
+            total_tops = len(predicted_tops)
+            total_bottoms = len(predicted_bottoms)
+
+            top_accuracy = (correct_tops / total_tops) * 100 if total_tops > 0 else 0
+            bottom_accuracy = (correct_bottoms / total_bottoms) * 100 if total_bottoms > 0 else 0
+
+            # Display the accuracy percentages
+            st.write(f"### Accuracy of Predicted Tops and Bottoms")
+            st.write(f"**Correct Top Predictions:** {correct_tops} out of {total_tops} ({top_accuracy:.2f}%)")
+            st.write(f"**Correct Bottom Predictions:** {correct_bottoms} out of {total_bottoms} ({bottom_accuracy:.2f}%)")
+
+            # Function to apply the color formatting to the percentage change column
+            def colorize_percent_change(val):
+                color = 'red' if val < 0 else 'green' if val > 0 else 'black'
+                return f'color: {color}'
+
+            # Display the results in Streamlit with conditional formatting
+            st.write(f"### Predicted Tops (Price After {shift_value} Days)")
+            st.dataframe(
+                predicted_tops.rename(columns={
+                    'date': 'Date',
+                    'adjclose': 'Current Price',
+                    'Price_After_X_Days': f'Price After {shift_value} Days',
+                    'Price_Change': 'Price Change',
+                    'Price_Change_%': '% Change'
+                }).style.applymap(colorize_percent_change, subset=['% Change']),
+                use_container_width=True
+            )
+
+            st.write(f"### Predicted Bottoms (Price After {shift_value} Days)")
+            st.dataframe(
+                predicted_bottoms.rename(columns={
+                    'date': 'Date',
+                    'adjclose': 'Current Price',
+                    'Price_After_X_Days': f'Price After {shift_value} Days',
+                    'Price_Change': 'Price Change',
+                    'Price_Change_%': '% Change'
+                }).style.applymap(colorize_percent_change, subset=['% Change']),
+                use_container_width=True
+            )
+
 
             ##############
-            
+
             # Create a placeholder for live XBI minute data
             xbi_minute_placeholder = st.empty()
             
@@ -576,6 +645,7 @@ def main():
 
         else:
             st.error("Incorrect password. Please try again.")
+
 
 if __name__ == "__main__":
     main()
